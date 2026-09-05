@@ -6,10 +6,16 @@
 #include <time.h>
 #include <unistd.h>
 #include "util.h"
+#include <string.h>
 
+typedef void handler_t(int);
 
 void handle_signal(int sig){
-
+  ssize_t bytes;
+  const int STDOUT = 1;
+  bytes = write(STDOUT, "Nice try.\n", 10);
+  if(bytes != 10)
+    exit(-999);
 }
 
 /*
@@ -24,25 +30,18 @@ void handle_signal(int sig){
 int main(int argc, char **argv)
 {
   pid_t pid = getpid();
-  printf("%s", pid);
+  printf("%d\n", pid);
 
-  struct sigaction sa;
-  sa.sa_handler = handle_signal;
-  sigemptyset(&sa.sa_mask);
-  sa.sa_flags = 0;
+  handler_t *old_handler = signal_action(SIGINT, handle_signal);
 
-  sigaction(SIGINT, &sa, NULL);
+  struct timespec sleep_amt;
+  sleep_amt.tv_sec = 3;
+  sleep_amt.tv_nsec = 0;
 
   while(1){
-    printf("%s", "Still here\n");
-    nanosleep()
+    printf("Still here\n");
+    nanosleep(&sleep_amt, NULL);
   }
-
-  ssize_t bytes;
-  const int STDOUT = 1;
-  bytes = write(STDOUT, "Nice try.\n", 10);
-  if(bytes != 10)
-    exit(-999);
   return 0;
 }
 
