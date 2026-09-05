@@ -18,6 +18,14 @@ void handle_signal(int sig){
     exit(-999);
 }
 
+void handle_sigusr1(int sig){
+  ssize_t bytes;
+  const int STDOUT = 1;
+  bytes = write(STDOUT, "exiting\n", 8);
+  if (bytes != 8)
+    exit(-999);
+  exit(1);
+}
 /*
  * First, print out the process ID of this process.
  *
@@ -33,6 +41,7 @@ int main(int argc, char **argv)
   printf("%d\n", pid);
 
   handler_t *old_handler = signal_action(SIGINT, handle_signal);
+  handler_t *old_sigusr1_handler = signal_action(SIGUSR1, handle_sigusr1);
 
   struct timespec sleep_amt;
   sleep_amt.tv_sec = 3;

@@ -9,6 +9,7 @@ in the future */
 #include "util.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 /* Global variables */
 /* The array for holding shell paths. Can be edited by the functions in util.c*/
@@ -29,35 +30,81 @@ struct Command
 
 char **tokenize_command_line (char *cmdline);
 struct Command parse_command (char **tokens);
-void eval (struct Command *cmd);
-int try_exec_builtin (struct Command *cmd);
+void eval (struct Command *cmd){
+  if (cmd->args == NULL || cmd->args[0] == NULL)
+  {
+    return; 
+  }
+
+  if (try_exec_builtin (cmd))
+  {
+    return; 
+  }
+
+  exec_external_cmd (cmd);
+}
+
+int try_exec_builtin (struct Command *cmd){
+  if (cmd->args[0] == NULL) {
+    return 1;
+  }
+  if (strcmp (cmd->args[0], "exit") == 0)
+  {
+    exit (0);
+  }
+  if (strcmp (cmd->args[0], "cd") == 0)
+  {
+    if (cmd->args[1] == NULL || cmd->args[2] != NULL)
+    {
+      exit(1);
+    }
+    if (chdir(cmd->args[1]) != 0)
+    {
+      exit(1);
+    }
+    return 1;
+  }
+  return 0;
+}
 void exec_external_cmd (struct Command *cmd);
 
 /* Main REPL: read, evaluate, and print. This function should remain relatively
    short: if it grows beyond 60 lines, you're doing too much in main() and
    should try to move some of that work into other functions. */
-int main (int argc, char **argv)
-{
+int main (int argc, char **argv){
   set_shell_path (default_shell_path);
 
   /* These two lines are just here to suppress certain warnings. You should
    * delete them when you implement Part 1.4 */
   (void) argc;
   (void) argv;
+  char *buffer = NULL;
+  size_t bufsize = 0;
+  ssize_t input;
 
-  while (1)
-    {
+  while (1){
       printf ("%s", prompt);
-      printf ("If you see these lines, you are probably running the shell "
-              "skeleton. Exiting to prevent terminal spam.\n");
-      exit (1883);
+      //printf ("If you see these lines, you are probably running the shell "
+        //      "skeleton. Exiting to prevent terminal spam.\n");
+      //exit (1883);
 
       /* Read */
-
+      input = getline(&buffer, &bufsize, stdin);
       /* Evaluate */
+      if (input == -1) {
+        exit(1);
+      }
+      buffer[strcspn(buffer, "\n")] = '\0';
 
+      if (strcmp(buffer, "exit") == 0) {
+        exit(0);
+      } else {
+        printf(buffer);
+      }
       /* Print (optional) */
     }
+  
+  free(buffer);
   return 0;
 }
 
@@ -74,7 +121,21 @@ with your own implementation. */
 char **tokenize_command_line (char *cmdline)
 {
   (void) cmdline;
-  return NULL;
+  char **arr = malloc(8 * sizeof(char*));
+  if (arr == NULL) {
+    exit(1);
+  }
+  char *token = strtok(cmdline, " ");
+  int i = 0;
+
+  while(token != NULL){
+
+    arr[i] = &token;
+    i++;
+    token = strtok(NULL, " ");
+  }
+  arr[i] = NULL;
+  return arr;
 }
 
 /** Turn tokens into a command.

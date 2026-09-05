@@ -1,9 +1,9 @@
 path /bin tests/test-utils
-p1.sh > /tmp/ans/utcsh/output301 & p2.sh > /tmp/ans/utcsh/output302 & p3.sh > /tmp/ans/utcsh/output303
-cat /tmp/ans/utcsh/output301
-cat /tmp/ans/utcsh/output302
-cat /tmp/ans/utcsh/output303
-rm -rf /tmp/ans/utcsh/output301
-rm -rf /tmp/ans/utcsh/output302
-rm -rf /tmp/ans/utcsh/output303
+p1.sh > /var/folders/f9/k2b06lq17hq3x6401981y5l40000gn/T/root/utcsh/output301 & p2.sh > /var/folders/f9/k2b06lq17hq3x6401981y5l40000gn/T/root/utcsh/output302 & p3.sh > /var/folders/f9/k2b06lq17hq3x6401981y5l40000gn/T/root/utcsh/output303
+cat /var/folders/f9/k2b06lq17hq3x6401981y5l40000gn/T/root/utcsh/output301
+cat /var/folders/f9/k2b06lq17hq3x6401981y5l40000gn/T/root/utcsh/output302
+cat /var/folders/f9/k2b06lq17hq3x6401981y5l40000gn/T/root/utcsh/output303
+rm -rf /var/folders/f9/k2b06lq17hq3x6401981y5l40000gn/T/root/utcsh/output301
+rm -rf /var/folders/f9/k2b06lq17hq3x6401981y5l40000gn/T/root/utcsh/output302
+rm -rf /var/folders/f9/k2b06lq17hq3x6401981y5l40000gn/T/root/utcsh/output303
 exit

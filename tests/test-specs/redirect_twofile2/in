@@ -1,2 +1,2 @@
-ls > /tmp/ans/utcsh/aaaaa /tmp/ans/utcsh/bbbbb   
+ls > /var/folders/f9/k2b06lq17hq3x6401981y5l40000gn/T/root/utcsh/aaaaa /var/folders/f9/k2b06lq17hq3x6401981y5l40000gn/T/root/utcsh/bbbbb   
 exit

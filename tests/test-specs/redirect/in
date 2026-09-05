@@ -1,4 +1,4 @@
-ls tests/test-utils/p2a-test > /tmp/ans/utcsh/output19
-cat /tmp/ans/utcsh/output19
-rm -f /tmp/ans/utcsh/output19
+ls tests/test-utils/p2a-test > /var/folders/f9/k2b06lq17hq3x6401981y5l40000gn/T/root/utcsh/output19
+cat /var/folders/f9/k2b06lq17hq3x6401981y5l40000gn/T/root/utcsh/output19
+rm -f /var/folders/f9/k2b06lq17hq3x6401981y5l40000gn/T/root/utcsh/output19
 exit
