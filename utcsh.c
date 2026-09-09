@@ -50,13 +50,13 @@ int main (int argc, char **argv)
   if (argc == 2) {
     file = fopen(argv[1], "r");
     if (file == NULL) {
-      fprintf(stderr, "An error has occurred. File is invalid\n");
+      fprintf(stderr, "An error has occurred\n");
       exit(1);
     }
   } else if(argc == 1) {
     file = stdin;
     } else {
-    fprintf(stderr, "An error has occurred. Too many arguments when calling this script\n");
+    fprintf(stderr, "An error has occurred\n");
     exit(1);
   }
   while (1) {
@@ -66,11 +66,21 @@ int main (int argc, char **argv)
       /* Read */
       input = getline(&buffer, &bufsize, file);
       if (input == -1) {
+        // file is invalid
+        if (ferror(file)) {
+        fprintf(stderr, "An error has occurred\n");
+        free(buffer);
+        exit(1);
+        }
         // ctrl + d or EOF
+        free(buffer);
         exit(0);
       }
       buffer[strcspn(buffer, "\n")] = '\0';
       char **tokens = tokenize_command_line(buffer);
+      if (tokens == NULL) {
+        continue;
+      }
       /* Evaluate */
       struct Command cmd = parse_command(tokens);
       eval(&cmd);
@@ -98,32 +108,34 @@ char **tokenize_command_line (char *cmdline)
     fprintf(stderr, "An error has occured\n");
   }
 
-  char *token = strtok(cmdline, " ");
+  char *token = strtok(cmdline, " \t");
   if (token == NULL) {
-    fprintf(stderr, "An error has occurred. No command\n");
+    free(tokens);
     return NULL;
   }
   int i = 0;
   if (strcmp(token, "exit") == 0) {
-    if(strtok(NULL, " ") != NULL) {
-      fprintf(stderr, "An error has occurred. Exit has more commands\n");
+    if(strtok(NULL, " \t") != NULL) {
+      fprintf(stderr, "An error has occurred\n");
       return NULL;
     }
     tokens[0] = token;
+    tokens[1] = NULL;
     return tokens;
   }
   if (strcmp(token, "cd") == 0){
     tokens[0] = token;
-    token = strtok(NULL, " ");
+    token = strtok(NULL, " \t");
     if (token == NULL) {
-      fprintf(stderr, "An error has occurred. Not enough arguments for cd\n");
+      fprintf(stderr, "An error has occurred\n");
       return NULL;
     }
     tokens[1] = token;
-    if(strtok(NULL, " ") != NULL) {
-      fprintf(stderr, "An error has occurred. cd can only have one argument\n");
+    if(strtok(NULL, " \t") != NULL) {
+      fprintf(stderr, "An error has occurred\n");
       return NULL;
     }
+    tokens[2] = NULL;
     return tokens;
   }
   
@@ -132,14 +144,14 @@ char **tokenize_command_line (char *cmdline)
       n = n * 2;
       char **temp = realloc(tokens, n * sizeof(char*));
       if (temp == NULL) {
-        fprintf(stderr, "An error has occurred. Not enough memory for tokens\n");
+        fprintf(stderr, "An error has occurred\n");
         return NULL;
       }
       tokens = temp;
     }
     tokens[i] = token;
     i++;
-    token = strtok(NULL, " ");
+    token = strtok(NULL, " \t");
   }
   tokens[i] = NULL;
   return tokens;
@@ -154,10 +166,6 @@ char **tokenize_command_line (char *cmdline)
  */
 struct Command parse_command (char **tokens)
 {
-  if (tokens == NULL) {
-    fprintf(stderr, "An error has occurred. Nothing to parse\n");
-    return;
-  }
   struct Command cmd = {.args = tokens, .outputFile = NULL};
   return cmd;
 }
@@ -182,7 +190,7 @@ void eval (struct Command *cmd)
 int try_exec_builtin (struct Command *cmd)
 {
   if (cmd->args[0] == NULL) {
-    fprintf(stderr, "An error has occurred. No commands\n");
+    fprintf(stderr, "An error has occurred\n");
     return 1;
   }
   if (strcmp(cmd->args[0], "exit") == 0) {
@@ -191,12 +199,12 @@ int try_exec_builtin (struct Command *cmd)
   }
   if (strcmp(cmd->args[0], "cd") == 0) {
     if(chdir(cmd->args[1]) == -1){
-      fprintf(stderr, "An error has occurred. Error changing directory.");
+      fprintf(stderr, "An error has occurred\n");
     }
     return 1;
   }
   if(strcmp(cmd->args[0], "path") == 0){
-    set_shell_path(cmd->args[1]);
+    set_shell_path(&cmd->args[1]);
     return 1;
   }
   return 0;
@@ -211,11 +219,11 @@ void exec_external_cmd (struct Command *cmd)
 {
   int pid = fork();
   if (pid < 0) {
-    fprintf(stderr, "An error has occurred with forking\n");
+    fprintf(stderr, "An error has occurred\n");
   } else if (pid == 0) {
     // is a child
     execv(cmd->args[0], cmd->args); //finish shell paths
-    fprintf(stderr, "An error has occurred. execv failed\n");
+    fprintf(stderr, "An error has occurred\n");
     return;
   } else {
     // parent
