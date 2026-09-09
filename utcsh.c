@@ -150,7 +150,7 @@ char **tokenize_command_line (char *cmdline)
       }
       arr = temp;
     }
-    arr[i] = &token;
+    arr[i] = token;
     i++;
     token = strtok(NULL, " ");
   }
