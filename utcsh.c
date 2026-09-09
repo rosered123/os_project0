@@ -239,6 +239,24 @@ int try_exec_builtin (struct Command *cmd)
  */
 void exec_external_cmd (struct Command *cmd)
 {
+  char *path;
+  if(is_absolute_path(cmd->args[0])){
+    path = cmd->args[0];
+  } else {
+    for(int i=0; i < MAX_ENTRIES_IN_SHELLPATH && shell_paths[i][0] != '\0'; i++) {
+      path = exe_exists_in_dir(shell_paths[i], cmd->args[0], false);
+      if(path == NULL) {
+        fprintf(stderr, "An error has occurred. Path is null\n");
+        return;
+      }
+    }
+  }
+
+  if (path == NULL){
+    fprintf (stderr, "An error has occurred\n");
+    return;
+  }
+
   int pid = fork();
   if (pid < 0) {
     fprintf(stderr, "An error has occurred\n");
