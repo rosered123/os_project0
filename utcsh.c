@@ -50,19 +50,29 @@ int try_exec_builtin (struct Command *cmd){
   }
   if (strcmp (cmd->args[0], "exit") == 0)
   {
-    exit (0);
+    if (cmd->args[1] != NULL)
+    {
+      fprintf(stderr, "An error has occured\n");
+      exit(1);
+    }
+    exit(0);
   }
   if (strcmp (cmd->args[0], "cd") == 0)
   {
     if (cmd->args[1] == NULL || cmd->args[2] != NULL)
     {
+      fprintf(stderr, "An error has occured\n");
       exit(1);
     }
     if (chdir(cmd->args[1]) != 0)
     {
+      fprintf(stderr, "An error has occured\n");
       exit(1);
     }
     return 1;
+  }
+  if (strcmp (cmd->args[0], "path") == 0) {
+
   }
   return 0;
 }
@@ -121,7 +131,8 @@ with your own implementation. */
 char **tokenize_command_line (char *cmdline)
 {
   (void) cmdline;
-  char **arr = malloc(8 * sizeof(char*));
+  int n = 8;
+  char **arr = malloc(n * sizeof(char*));
   if (arr == NULL) {
     exit(1);
   }
@@ -129,7 +140,16 @@ char **tokenize_command_line (char *cmdline)
   int i = 0;
 
   while(token != NULL){
-
+    if (i == n) {
+      n = n * 2;
+      char *temp = realloc(arr, n);
+      if (temp == NULL) {
+        fprintf(stderr, "An error has occured. Not enough memory for tokens");
+        free(arr);
+        exit(1);
+      }
+      arr = temp;
+    }
     arr[i] = &token;
     i++;
     token = strtok(NULL, " ");
