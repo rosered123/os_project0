@@ -26,6 +26,7 @@ struct Command
 {
   char **args;      /* Argument array for the command */
   char *outputFile; /* Redirect target for file (NULL means no redirect) */
+  bool valid; /*Way to keep track of if command is valid or not.*/
 };
 
 /* Here are the functions we recommend you implement */
@@ -55,10 +56,11 @@ int main (int argc, char **argv)
     }
   } else if(argc == 1) {
     file = stdin;
-    } else {
+  } else {
     fprintf(stderr, "An error has occurred\n");
     exit(1);
   }
+  bool prev_input = false;
   while (1) {
     if(file == stdin) {
       printf ("%s", prompt);
@@ -66,16 +68,20 @@ int main (int argc, char **argv)
       /* Read */
       input = getline(&buffer, &bufsize, file);
       if (input == -1) {
-        // file is invalid
-        if (ferror(file)) {
-        fprintf(stderr, "An error has occurred\n");
-        free(buffer);
-        exit(1);
+        if(ferror(file)) { // there was a read error
+          fprintf(stderr, "An error has occurred\n");
+          free(buffer);
+          exit(1);
         }
-        // ctrl + d or EOF
+        if (argc == 2 && !prev_input) { // empty file (invalid)
+          fprintf(stderr, "An error has occurred\n");
+          free(buffer);
+          exit(1);
+        }
         free(buffer);
         exit(0);
       }
+      prev_input = true;
       buffer[strcspn(buffer, "\n")] = '\0';
       char **tokens = tokenize_command_line(buffer);
       if (tokens == NULL) {
@@ -166,7 +172,21 @@ char **tokenize_command_line (char *cmdline)
  */
 struct Command parse_command (char **tokens)
 {
-  struct Command cmd = {.args = tokens, .outputFile = NULL};
+  struct Command cmd = {.args = tokens, .outputFile = NULL, .valid = true};
+  for (int i = 0; tokens[i] != NULL; i++) {
+    if (strcmp(tokens[i], ">") == 0) {
+      if (i == 0) {
+        cmd.valid = false;
+        return cmd;
+      }
+      if (tokens[i+1] == NULL) {
+        cmd.valid = false;
+        return cmd;
+      }
+      cmd.outputFile = tokens[i+1];
+      tokens[i] = NULL;
+    }
+  }
   return cmd;
 }
 
@@ -177,7 +197,9 @@ struct Command parse_command (char **tokens)
  */
 void eval (struct Command *cmd)
 {
-  if (try_exec_builtin(cmd) == 0) {
+  if (!cmd->valid) {
+    fprintf(stderr, "An error has occurred\n");
+  } else if (try_exec_builtin(cmd) == 0) {
     exec_external_cmd(cmd);
   }
 }
@@ -222,9 +244,20 @@ void exec_external_cmd (struct Command *cmd)
     fprintf(stderr, "An error has occurred\n");
   } else if (pid == 0) {
     // is a child
-    execv(cmd->args[0], cmd->args); //finish shell paths
+    if (cmd->args[0][0] == '/') { // the given command is already a path
+      execv(cmd->args[0], cmd->args);
+    } else {
+       for (int i = 0; i < MAX_ENTRIES_IN_SHELLPATH; i++) {
+          if (shell_paths[i][0] == '\0') {
+              continue;
+          }
+          char full_path[MAX_CHARS_PER_CMDLINE];
+          snprintf(full_path, sizeof(full_path), "%s/%s", shell_paths[i], cmd->args[0]);
+          execv(full_path, cmd->args);
+      }
+    }
     fprintf(stderr, "An error has occurred\n");
-    return;
+    exit(1); // terminate child
   } else {
     // parent
     int status;
