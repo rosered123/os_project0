@@ -1,7 +1,8 @@
 /*
   utcsh - The UTCS Shell
 
-  <Put your name and CS login ID here>
+  Kiera Pattani kmp4782
+  Shreya Goel sg63353
 */
 
 /* Read the additional functions from util.h. They may be beneficial to you
@@ -10,6 +11,7 @@ in the future */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 /* Global variables */
 /* The array for holding shell paths. Can be edited by the functions in util.c*/
@@ -30,91 +32,51 @@ struct Command
 
 char **tokenize_command_line (char *cmdline);
 struct Command parse_command (char **tokens);
-void eval (struct Command *cmd){
-  if (cmd->args == NULL || cmd->args[0] == NULL)
-  {
-    return; 
-  }
-
-  if (try_exec_builtin (cmd))
-  {
-    return; 
-  }
-
-  exec_external_cmd (cmd);
-}
-
-int try_exec_builtin (struct Command *cmd){
-  if (cmd->args[0] == NULL) {
-    return 1;
-  }
-  if (strcmp (cmd->args[0], "exit") == 0)
-  {
-    if (cmd->args[1] != NULL)
-    {
-      fprintf(stderr, "An error has occured\n");
-      exit(1);
-    }
-    exit(0);
-  }
-  if (strcmp (cmd->args[0], "cd") == 0)
-  {
-    if (cmd->args[1] == NULL || cmd->args[2] != NULL)
-    {
-      fprintf(stderr, "An error has occured\n");
-      exit(1);
-    }
-    if (chdir(cmd->args[1]) != 0)
-    {
-      fprintf(stderr, "An error has occured\n");
-      exit(1);
-    }
-    return 1;
-  }
-  if (strcmp (cmd->args[0], "path") == 0) {
-
-  }
-  return 0;
-}
+void eval (struct Command *cmd);
+int try_exec_builtin (struct Command *cmd);
 void exec_external_cmd (struct Command *cmd);
 
 /* Main REPL: read, evaluate, and print. This function should remain relatively
    short: if it grows beyond 60 lines, you're doing too much in main() and
    should try to move some of that work into other functions. */
-int main (int argc, char **argv){
+int main (int argc, char **argv)
+{
   set_shell_path (default_shell_path);
 
-  /* These two lines are just here to suppress certain warnings. You should
-   * delete them when you implement Part 1.4 */
-  (void) argc;
-  (void) argv;
   char *buffer = NULL;
   size_t bufsize = 0;
   ssize_t input;
-
-  while (1){
+  FILE *file;
+  if (argc == 2) {
+    file = fopen(argv[1], "r");
+    if (file == NULL) {
+      fprintf(stderr, "An error has occurred. File is invalid\n");
+      exit(1);
+    }
+  } else if(argc == 1) {
+    file = stdin;
+    } else {
+    fprintf(stderr, "An error has occurred. Too many arguments when calling this script\n");
+    exit(1);
+  }
+  while (1) {
+    if(file == stdin) {
       printf ("%s", prompt);
-      //printf ("If you see these lines, you are probably running the shell "
-        //      "skeleton. Exiting to prevent terminal spam.\n");
-      //exit (1883);
-
+    }
       /* Read */
-      input = getline(&buffer, &bufsize, stdin);
-      /* Evaluate */
+      input = getline(&buffer, &bufsize, file);
       if (input == -1) {
-        exit(1);
+        // ctrl + d or EOF
+        exit(0);
       }
       buffer[strcspn(buffer, "\n")] = '\0';
-
-      if (strcmp(buffer, "exit") == 0) {
-        exit(0);
-      } else {
-        printf(buffer);
-      }
+      char **tokens = tokenize_command_line(buffer);
+      /* Evaluate */
+      struct Command cmd = parse_command(tokens);
+      eval(&cmd);
       /* Print (optional) */
-    }
-  
-  free(buffer);
+      free(tokens);
+  }
   return 0;
 }
 
@@ -130,32 +92,57 @@ with your own implementation. */
  */
 char **tokenize_command_line (char *cmdline)
 {
-  (void) cmdline;
-  int n = 8;
-  char **arr = malloc(n * sizeof(char*));
-  if (arr == NULL) {
-    exit(1);
+ int n = 8;
+ char **tokens = malloc(n * sizeof(char*)); 
+  if (tokens == NULL) {
+    fprintf(stderr, "An error has occured\n");
   }
-  char *token = strtok(cmdline, " ");
-  int i = 0;
 
-  while(token != NULL){
-    if (i == n) {
-      n = n * 2;
-      char *temp = realloc(arr, n);
-      if (temp == NULL) {
-        fprintf(stderr, "An error has occured. Not enough memory for tokens");
-        free(arr);
-        exit(1);
-      }
-      arr = temp;
+  char *token = strtok(cmdline, " ");
+  if (token == NULL) {
+    fprintf(stderr, "An error has occurred. No command\n");
+    return NULL;
+  }
+  int i = 0;
+  if (strcmp(token, "exit") == 0) {
+    if(strtok(NULL, " ") != NULL) {
+      fprintf(stderr, "An error has occurred. Exit has more commands\n");
+      return NULL;
     }
-    arr[i] = token;
+    tokens[0] = token;
+    return tokens;
+  }
+  if (strcmp(token, "cd") == 0){
+    tokens[0] = token;
+    token = strtok(NULL, " ");
+    if (token == NULL) {
+      fprintf(stderr, "An error has occurred. Not enough arguments for cd\n");
+      return NULL;
+    }
+    tokens[1] = token;
+    if(strtok(NULL, " ") != NULL) {
+      fprintf(stderr, "An error has occurred. cd can only have one argument\n");
+      return NULL;
+    }
+    return tokens;
+  }
+  
+  while (token != NULL) {
+    if (i == n - 1) {
+      n = n * 2;
+      char **temp = realloc(tokens, n * sizeof(char*));
+      if (temp == NULL) {
+        fprintf(stderr, "An error has occurred. Not enough memory for tokens\n");
+        return NULL;
+      }
+      tokens = temp;
+    }
+    tokens[i] = token;
     i++;
     token = strtok(NULL, " ");
   }
-  arr[i] = NULL;
-  return arr;
+  tokens[i] = NULL;
+  return tokens;
 }
 
 /** Turn tokens into a command.
@@ -167,8 +154,12 @@ char **tokenize_command_line (char *cmdline)
  */
 struct Command parse_command (char **tokens)
 {
-  struct Command dummy = {.args = tokens, .outputFile = NULL};
-  return dummy;
+  if (tokens == NULL) {
+    fprintf(stderr, "An error has occurred. Nothing to parse\n");
+    return;
+  }
+  struct Command cmd = {.args = tokens, .outputFile = NULL};
+  return cmd;
 }
 
 /** Evaluate a single command
@@ -178,8 +169,9 @@ struct Command parse_command (char **tokens)
  */
 void eval (struct Command *cmd)
 {
-  (void) cmd;
-  return;
+  if (try_exec_builtin(cmd) == 0) {
+    exec_external_cmd(cmd);
+  }
 }
 
 /** Execute built-in commands
@@ -189,7 +181,24 @@ void eval (struct Command *cmd)
  */
 int try_exec_builtin (struct Command *cmd)
 {
-  (void) cmd;
+  if (cmd->args[0] == NULL) {
+    fprintf(stderr, "An error has occurred. No commands\n");
+    return 1;
+  }
+  if (strcmp(cmd->args[0], "exit") == 0) {
+    exit(0);
+    return 1;
+  }
+  if (strcmp(cmd->args[0], "cd") == 0) {
+    if(chdir(cmd->args[1]) == -1){
+      fprintf(stderr, "An error has occurred. Error changing directory.");
+    }
+    return 1;
+  }
+  if(strcmp(cmd->args[0], "path") == 0){
+    set_shell_path(cmd->args[1]);
+    return 1;
+  }
   return 0;
 }
 
@@ -200,6 +209,17 @@ int try_exec_builtin (struct Command *cmd)
  */
 void exec_external_cmd (struct Command *cmd)
 {
-  (void) cmd;
-  return;
+  int pid = fork();
+  if (pid < 0) {
+    fprintf(stderr, "An error has occurred with forking\n");
+  } else if (pid == 0) {
+    // is a child
+    execv(cmd->args[0], cmd->args); //finish shell paths
+    fprintf(stderr, "An error has occurred. execv failed\n");
+    return;
+  } else {
+    // parent
+    int status;
+    waitpid(pid, &status, 0);
+  }
 }

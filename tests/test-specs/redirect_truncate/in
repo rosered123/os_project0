@@ -1,6 +1,6 @@
 path /bin tests/test-utils
-echo This is a relatively long string heyo test test lol > /var/folders/f9/k2b06lq17hq3x6401981y5l40000gn/T/root/utcsh/output20
-echo This is a short string > /var/folders/f9/k2b06lq17hq3x6401981y5l40000gn/T/root/utcsh/output20
-cat /var/folders/f9/k2b06lq17hq3x6401981y5l40000gn/T/root/utcsh/output20
-rm -f /var/folders/f9/k2b06lq17hq3x6401981y5l40000gn/T/root/utcsh/output20
+echo This is a relatively long string heyo test test lol > /tmp/kierap/utcsh/output20
+echo This is a short string > /tmp/kierap/utcsh/output20
+cat /tmp/kierap/utcsh/output20
+rm -f /tmp/kierap/utcsh/output20
 exit

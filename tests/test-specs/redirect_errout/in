@@ -1,5 +1,5 @@
 path tests/test-utils /bin
-p6.sh > /var/folders/f9/k2b06lq17hq3x6401981y5l40000gn/T/root/utcsh/output25
-cat /var/folders/f9/k2b06lq17hq3x6401981y5l40000gn/T/root/utcsh/output25
-rm -f /var/folders/f9/k2b06lq17hq3x6401981y5l40000gn/T/root/utcsh/output25
+p6.sh > /tmp/kierap/utcsh/output25
+cat /tmp/kierap/utcsh/output25
+rm -f /tmp/kierap/utcsh/output25
 exit
