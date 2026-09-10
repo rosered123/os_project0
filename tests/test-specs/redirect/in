@@ -1,4 +1,4 @@
-ls tests/test-utils/p2a-test > /tmp/kierap/utcsh/output19
-cat /tmp/kierap/utcsh/output19
-rm -f /tmp/kierap/utcsh/output19
+ls tests/test-utils/p2a-test > /tmp/shreyag/utcsh/output19
+cat /tmp/shreyag/utcsh/output19
+rm -f /tmp/shreyag/utcsh/output19
 exit

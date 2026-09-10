@@ -37,6 +37,8 @@ struct Command parse_command (char **tokens);
 void eval (struct Command *cmd);
 int try_exec_builtin (struct Command *cmd);
 void exec_external_cmd (struct Command *cmd);
+char ***split_on_ampersand(char **cmdline, int *n);
+void run_command_line(struct Command *cmds, int n);
 
 /* Main REPL: read, evaluate, and print. This function should remain relatively
    short: if it grows beyond 60 lines, you're doing too much in main() and
@@ -89,13 +91,40 @@ int main (int argc, char **argv)
         continue;
       }
       /* Evaluate */
-      struct Command cmd = parse_command(tokens);
-      if (!cmd.valid) {
-        fprintf(stderr, "An error has occurred\n");
-        continue;
+      // struct Command cmd = parse_command(tokens);
+      // if (!cmd.valid) {
+      //   fprintf(stderr, "An error has occurred\n");
+      //   continue;
+      // }
+      // eval(&cmd);
+      // /* Print (optional) */
+      // free(tokens);
+      int num_commands;
+      char ***commands = split_on_ampersand(tokens, &num_commands);
+
+      if (commands == NULL) {
+          free(tokens);
+          continue;
       }
-      eval(&cmd);
-      /* Print (optional) */
+
+      struct Command cmds[num_commands];
+
+      for (int i = 0; i < num_commands; i++) {
+          cmds[i] = parse_command(commands[i]);
+
+          if (!cmds[i].valid) {
+              fprintf(stderr, "An error has occurred\n");
+              exit(0);
+          }
+      }
+
+      run_command_line(cmds, num_commands);
+
+      for (int i = 0; i < num_commands; i++) {
+          free(commands[i]);
+      }
+
+      free(commands);
       free(tokens);
   }
   return 0;
@@ -111,60 +140,85 @@ with your own implementation. */
  * much easier to process. First, you should figure out how many arguments you
  * have, then allocate a char** of sufficient size and fill it using strtok()
  */
-char **tokenize_command_line (char *cmdline)
-{
- int n = 8;
- char **tokens = malloc(n * sizeof(char*)); 
+
+char **tokenize_command_line(char *cmdline){
+  int capacity = 8;
+  int count = 0;
+
+  char **tokens = malloc(capacity * sizeof(char *));
   if (tokens == NULL) {
-    fprintf(stderr, "An error has occured\n");
+      return NULL;
   }
 
-  char *token = strtok(cmdline, " \t");
-  if (token == NULL) {
-    free(tokens);
-    return NULL;
-  }
-  int i = 0;
-  if (strcmp(token, "exit") == 0) {
-    if(strtok(NULL, " \t") != NULL) {
-      fprintf(stderr, "An error has occurred\n");
-      return NULL;
+  char *token = cmdline;
+
+  while (*token != '\0') {
+    while (*token == ' ' || *token == '\t') {
+      token++;
     }
-    tokens[0] = token;
-    tokens[1] = NULL;
-    return tokens;
-  }
-  if (strcmp(token, "cd") == 0){
-    tokens[0] = token;
-    token = strtok(NULL, " \t");
-    if (token == NULL) {
-      fprintf(stderr, "An error has occurred\n");
-      return NULL;
+    if (*token == '\0') {
+        break;
     }
-    tokens[1] = token;
-    if(strtok(NULL, " \t") != NULL) {
-      fprintf(stderr, "An error has occurred\n");
-      return NULL;
+    if (*token == '&') {
+      if (count == capacity - 1) {
+        capacity *= 2;
+        char **temp = realloc(tokens, capacity * sizeof(char *));
+        if (temp == NULL) {
+          free(tokens);
+          return NULL;
+        }
+        tokens = temp;
+      }
+      tokens[count++] = token;
+      token++;
+      continue;
     }
-    tokens[2] = NULL;
-    return tokens;
-  }
-  
-  while (token != NULL) {
-    if (i == n - 1) {
-      n = n * 2;
-      char **temp = realloc(tokens, n * sizeof(char*));
+    
+
+    char *start = token;
+    while (*token != '\0' && *token != ' ' && *token != '\t' && *token != '&') {
+      token++;
+    }
+    char saved = *token;
+    *token = '\0';
+
+    if (count == capacity - 1) {
+      capacity *= 2;
+      char **temp = realloc(tokens, capacity * sizeof(char *));
       if (temp == NULL) {
-        fprintf(stderr, "An error has occurred\n");
+        free(tokens);
         return NULL;
       }
       tokens = temp;
     }
-    tokens[i] = token;
-    i++;
-    token = strtok(NULL, " \t");
+
+    tokens[count++] = start;
+    // if (saved == '&') {
+    //   *token = saved;
+    // } else if (saved != '\0') {
+    //   token++;
+    // } else {
+    //   *token = saved;
+    // }
+    if (saved == '&') {
+  if (count == capacity - 1) {
+    capacity *= 2;
+    char **temp = realloc(tokens, capacity * sizeof(char *));
+    if (temp == NULL) {
+      free(tokens);
+      return NULL;
+    }
+    tokens = temp;
   }
-  tokens[i] = NULL;
+
+  static char amp[] = "&";
+  tokens[count++] = amp;
+  token++;
+} else if (saved != '\0') {
+  token++;
+}
+  }
+  tokens[count] = NULL;
   return tokens;
 }
 
@@ -207,7 +261,7 @@ struct Command parse_command (char **tokens)
 void eval (struct Command *cmd)
 {
   if (!cmd->valid) {
-    fprintf(stderr, "An error has occurred\n");
+    return;
   } else if (try_exec_builtin(cmd) == 0) {
     exec_external_cmd(cmd);
   }
@@ -221,16 +275,25 @@ void eval (struct Command *cmd)
 int try_exec_builtin (struct Command *cmd)
 {
   if (cmd->args[0] == NULL) {
-    fprintf(stderr, "An error has occurred\n");
     return 1;
   }
   if (strcmp(cmd->args[0], "exit") == 0) {
+    if (cmd->args[1] != NULL) {
+      fprintf(stderr, "An error has occurred\n");
+      return 1;
+    }
     exit(0);
     return 1;
   }
   if (strcmp(cmd->args[0], "cd") == 0) {
-    if(chdir(cmd->args[1]) == -1){
+    if (cmd->args[1] == NULL || cmd->args[2] != NULL) {
       fprintf(stderr, "An error has occurred\n");
+      return 1;
+    }
+
+    if (chdir(cmd->args[1]) == -1) {
+      fprintf(stderr, "An error has occurred\n");
+      return 1;
     }
     return 1;
   }
@@ -251,6 +314,7 @@ void exec_external_cmd (struct Command *cmd)
   int pid = fork();
   if (pid < 0) {
     fprintf(stderr, "An error has occurred\n");
+    return;
   } else if (pid == 0) {
     // is a child
     if (cmd->outputFile != NULL) {
@@ -287,5 +351,171 @@ void exec_external_cmd (struct Command *cmd)
     // parent
     int status;
     waitpid(pid, &status, 0);
+  }
+}
+
+pid_t fork_one_external (struct Command *cmd)
+{
+  pid_t pid = fork();
+  if (pid < 0) {
+    fprintf(stderr, "An error has occurred\n");
+    return -1;
+  } else if (pid == 0) {
+    if (cmd->outputFile != NULL) {
+      int fd = open(cmd->outputFile, O_WRONLY | O_CREAT | O_TRUNC, 00700);
+      if (fd == -1) {
+        fprintf(stderr, "An error has occurred\n");
+        exit(1);
+      }
+      if(dup2(fd, STDOUT_FILENO) == -1) {
+        fprintf(stderr, "An error has occurred\n");
+        exit(1);
+      }
+      if (dup2(fd, STDERR_FILENO) == -1) {
+        fprintf(stderr, "An error has occurred\n");
+        exit(1);
+      }
+      close(fd);
+    }
+
+    if (is_absolute_path(cmd->args[0]) != 0) { // the given command is already a path
+      execv(cmd->args[0], cmd->args);
+    } else {
+       for (int i = 0; i < MAX_ENTRIES_IN_SHELLPATH; i++) {
+          char *full_path = exe_exists_in_dir(shell_paths[i], cmd->args[0], false);      
+          if (full_path != NULL) {
+            execv(full_path, cmd->args);
+            free(full_path);
+          }
+      }
+    }
+    fprintf(stderr, "An error has occurred\n");
+    exit(1); // terminate child
+  }
+  return pid;  /* parent: no wait here */
+}
+
+char ***split_on_ampersand(char **cmdline, int *n)
+{
+    int capacity = 8;
+    int count = 0;
+
+    char ***commands = malloc(capacity * sizeof(char **));
+    if (commands == NULL) {
+        // fprintf(stderr, "An error has occurred\n");
+        return NULL;
+    }
+
+    int start = 0;
+
+    for (int i = 0; ; i++) {
+
+        /* We reached & or the end */
+        if (cmdline[i] == NULL || strcmp(cmdline[i], "&") == 0) {
+
+            int length = i - start;
+
+            char **command = malloc((length + 1) * sizeof(char *));
+            if (command == NULL) {
+                // fprintf(stderr, "An error has occurred\n");
+                free(commands);
+                return NULL;
+            }
+
+            for (int j = 0; j < length; j++) {
+                command[j] = cmdline[start + j];
+            }
+
+            command[length] = NULL;
+
+            /* Add command to array */
+            if (count == capacity) {
+                capacity *= 2;
+
+                char ***temp = realloc(
+                    commands,
+                    capacity * sizeof(char **)
+                );
+
+                if (temp == NULL) {
+                    // fprintf(stderr, "An error has occurred\n");
+                    free(command);
+                    free(commands);
+                    return NULL;
+                }
+
+                commands = temp;
+            }
+
+            commands[count++] = command;
+
+            /* If we're at the end, we're done */
+            if (cmdline[i] == NULL) {
+                break;
+            }
+
+            /* Otherwise skip the & */
+            start = i + 1;
+        }
+    }
+
+    *n = count;
+    return commands;
+}
+
+int is_builtin_name(char *name)
+{
+  return name != NULL &&
+         (strcmp(name, "exit") == 0 ||
+          strcmp(name, "cd") == 0 ||
+          strcmp(name, "path") == 0);
+}
+
+void run_command_line (struct Command *cmds, int n)
+{
+  /* Decide: does every command resolve to a builtin? */
+  int all_builtin = 1;
+  for (int i = 0; i < n; i++) {
+    if (cmds[i].args[0] == NULL) {
+            continue;
+    }
+    if (cmds[i].args[0] != NULL && !is_builtin_name(cmds[i].args[0])) {
+      all_builtin = 0;
+      break;
+    }
+  }
+
+  if (all_builtin) {
+    /* Sequential, left to right */
+    for (int i = 0; i < n; i++) {
+      if (cmds[i].args[0] == NULL) {
+        continue;
+      }
+      eval(&cmds[i]);
+    }
+    return;
+  }
+
+  /* At least one external command: fork all, then wait for all */
+  pid_t pids[n];
+  int num_pids = 0;
+
+  for (int i = 0; i < n; i++) {
+    if (cmds[i].args[0] == NULL) {
+      continue;  /* blank command between &'s: skip, not an error */
+    }
+    if (is_builtin_name(cmds[i].args[0])) {
+      eval(&cmds[i]);  /* per spec: mixed case, no defined behavior — just don't crash */
+      continue;
+    }
+    pid_t pid = fork_one_external(&cmds[i]);   /* fork+execv, but DOESN'T wait */
+    if (pid > 0) {
+      pids[num_pids++] = pid;
+    }
+  }
+
+  for (int i = 0; i < num_pids; i++) {
+    int status;
+    waitpid(pids[i], &status, 0);
   }
 }
