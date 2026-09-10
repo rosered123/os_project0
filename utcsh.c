@@ -12,6 +12,7 @@ in the future */
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <fcntl.h>
 
 /* Global variables */
 /* The array for holding shell paths. Can be edited by the functions in util.c*/
@@ -89,6 +90,10 @@ int main (int argc, char **argv)
       }
       /* Evaluate */
       struct Command cmd = parse_command(tokens);
+      if (!cmd.valid) {
+        fprintf(stderr, "An error has occurred\n");
+        continue;
+      }
       eval(&cmd);
       /* Print (optional) */
       free(tokens);
@@ -183,6 +188,10 @@ struct Command parse_command (char **tokens)
         cmd.valid = false;
         return cmd;
       }
+      if (tokens[i+2] != NULL) {
+        cmd.valid = false;
+        return cmd;
+      }
       cmd.outputFile = tokens[i+1];
       tokens[i] = NULL;
     }
@@ -239,39 +248,37 @@ int try_exec_builtin (struct Command *cmd)
  */
 void exec_external_cmd (struct Command *cmd)
 {
-  char *path;
-  if(is_absolute_path(cmd->args[0])){
-    path = cmd->args[0];
-  } else {
-    for(int i=0; i < MAX_ENTRIES_IN_SHELLPATH && shell_paths[i][0] != '\0'; i++) {
-      path = exe_exists_in_dir(shell_paths[i], cmd->args[0], false);
-      if(path == NULL) {
-        fprintf(stderr, "An error has occurred. Path is null\n");
-        return;
-      }
-    }
-  }
-
-  if (path == NULL){
-    fprintf (stderr, "An error has occurred\n");
-    return;
-  }
-
   int pid = fork();
   if (pid < 0) {
     fprintf(stderr, "An error has occurred\n");
   } else if (pid == 0) {
     // is a child
-    if (cmd->args[0][0] == '/') { // the given command is already a path
+    if (cmd->outputFile != NULL) {
+      int fd = open(cmd->outputFile, O_WRONLY | O_CREAT | O_TRUNC, 00700);
+      if (fd == -1) {
+        fprintf(stderr, "An error has occurred\n");
+        exit(1);
+      }
+      if(dup2(fd, STDOUT_FILENO) == -1) {
+        fprintf(stderr, "An error has occurred\n");
+        exit(1);
+      }
+      if (dup2(fd, STDERR_FILENO) == -1) {
+        fprintf(stderr, "An error has occurred\n");
+        exit(1);
+      }
+      close(fd);
+    }
+
+    if (is_absolute_path(cmd->args[0]) != 0) { // the given command is already a path
       execv(cmd->args[0], cmd->args);
     } else {
        for (int i = 0; i < MAX_ENTRIES_IN_SHELLPATH; i++) {
-          if (shell_paths[i][0] == '\0') {
-              continue;
+          char *full_path = exe_exists_in_dir(shell_paths[i], cmd->args[0], false);      
+          if (full_path != NULL) {
+            execv(full_path, cmd->args);
+            free(full_path);
           }
-          char full_path[MAX_CHARS_PER_CMDLINE];
-          snprintf(full_path, sizeof(full_path), "%s/%s", shell_paths[i], cmd->args[0]);
-          execv(full_path, cmd->args);
       }
     }
     fprintf(stderr, "An error has occurred\n");
