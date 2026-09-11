@@ -77,10 +77,19 @@ Questions regarding Part 0
     with 0 (the original process) and incrementing for
     each child process.
 
+    In fib.c, in the method doFib() lines 55-96, it creates a total of 14 child
+processes. Process 0 (5) -> Process 1 (4), Process 2 (3). Process 1 -> Process 
+3 (3), Process 4 (2). Process 2 (3) -> Process 5 (2), Process 6 (1). Process 3
+(3) -> Process 7 (2), Process 8 (1). Process 4 (2) -> Process 9 (1), Process 10
+(0). Process 5 (2) -> Process 11 (1), Process 12 (0). Process 7 (2) -> 
+Process 13 (1), Process 14 (0).
+
 
 (2) Explain how you communicated the return value of the 
     child to the parent. What feature of wait() did you use?
 
+In fib.c in doFib(), lines 86-89, we used waitpid and WEXITSTATUS to give
+the parent the return value of the child.
 
 ################
 Questions regarding Part 1
@@ -88,6 +97,10 @@ Questions regarding Part 1
 (1) In the provided utility function signal_action(), what does the call to
   sigaction() do?  Why was sigaction() used instead of signal()?
 
+In sig_util.c, in signal_action(), lines 18-32, the call to sigaction() 
+is a system call that changes the process in response to a specific signal. 
+In sigaction(), you can specify signals to block which is not available in
+signal(), and it is able to prevent interfering signals.
 
 ################
 Questions regarding Part 2
@@ -101,10 +114,26 @@ Questions regarding Part 2
     Note that you do not need to include concurrent commands in your answer. 
     Part 2 does not include this advanced shell feature.
 
+    In utcsh.c lines 26-31, 232-254, we used a struct called Command that had an
+array of strings to represent each argument that was passed. We had a string
+variable to redirect the output to a file (if given one). We had a boolean
+to ensure the command was valid before evaluating it. Another approcah would be
+to just create one array with all the necessary information for a single 
+command. This would be easier to manage as you could turn it to NULL if it was
+invalid instead of having a seperate variable for it. An advantage of our
+approach is that it is more organized and easier to keep track of since the 
+information are grouped together.
+
 
 (2) An invalid script file is one which does not contain anything (i.e. 
     a size zero file). How did you detect and handle this condition?  
     Describe one other (correct) design that you could have used.
+
+In utcsh.c in the main method, lines 79-82, we created a variable to keep 
+track of if there was a previous command before the empty line, to ensure 
+that it only errors if the file starts off with a blank line. Another 
+approach to this would be to check the size of the file and error out if
+the size is 0. 
 
 
 ################
@@ -113,7 +142,12 @@ Questions regarding Part 3
 (1) Describe how your implementation ensures that concurrent
     commands are executed concurrently instead of one after 
     another.
-
+In run_command_line (lines 461-507), each external command is forked through 
+the method fork_one_external (lines 341-383), which forks and execvs the child 
+but returns immediately without calling waitpid. All commands on the line are
+forked in this loop first, meaning all child processes exist and are running 
+concurrently. Only after every command has been forked does a second loop call 
+waitpid on each pid, making sure the shell doesn't move on until all of them finish. 
 
 (2) One potential strategy for redirecting output is to run 
     the following code:
@@ -134,3 +168,11 @@ Questions regarding Part 3
   Explain why this technique does not work when used in 
   conjunction with fork-and-exec, and why the dup2() 
   technique does not suffer the same issue.
+
+  In utcsh.c in exec_external_cmd(), in lines 326-333.
+When we call fork and exec, we are creating child processes and wiping out the
+current program's memory, however stdout and stderr are just variables inside
+that current program, so when exec is called those variables are not 
+transferred to the child process. The dup2() is a system call which the child
+process gets a copy of, so it is able to point to the same open file that was
+originally described within the parent process.

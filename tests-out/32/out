@@ -1,2 +1,23 @@
 ~/Documents/os_project0/tests/test-utils/p2a-ebb ~/Documents/os_project0
-Found PID file--UTCSH process exited abnormally.
+Finished syscall tests with counter at 21.
+test1
+test2
+test3
+test4
+test1
+test2
+test3
+test4
+test1
+test2
+test3
+test4
+test1
+test2
+test3
+test4
+test1
+test2
+test3
+test4
+Finished allocation tests with counter at 44.
