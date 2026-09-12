@@ -1,6 +1,6 @@
 cd ..
 cd /usr/bin
-cd /tmp/shreyag/utcsh
+cd /tmp/kierap/utcsh
 path
 path /usr/bin
 exit
